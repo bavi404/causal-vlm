@@ -1,0 +1,15 @@
+torch
+torchvision
+torchaudio
+numpy
+tqdm
+scikit-learn
+opencv-python
+soundfile
+librosa
+einops
+requests
+pandas
+matplotlib
+pytest
+
