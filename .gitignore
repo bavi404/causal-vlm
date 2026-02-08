@@ -38,6 +38,7 @@ ENV/
 
 # Results and cache
 results/
+!results/*.md
 cache/
 *.csv
 *.png
