@@ -320,6 +320,7 @@ def log_metrics_to_csv(
         append: Whether to append to existing file or overwrite
     """
     output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     file_exists = output_path.exists() and append
     
     mode = 'a' if append else 'w'
@@ -332,7 +333,15 @@ def log_metrics_to_csv(
         
         # Write metrics
         for metric_name, metric_value in metrics.items():
-            writer.writerow([task, metric_name, metric_value])
+            # Convert to float if possible, otherwise string
+            try:
+                if isinstance(metric_value, (int, float)):
+                    value = float(metric_value)
+                else:
+                    value = str(metric_value)
+            except (ValueError, TypeError):
+                value = str(metric_value)
+            writer.writerow([task, metric_name, value])
 
 
 def load_metrics_from_csv(csv_path: Union[str, Path]) -> Dict[str, Dict[str, float]]:

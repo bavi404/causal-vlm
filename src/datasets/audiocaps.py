@@ -118,7 +118,22 @@ class AudioCapsDataset(Dataset):
     def _validate_entry(self, entry: Dict) -> bool:
         """Validate that entry has required keys."""
         # Audio and question are required, image and answer are optional
-        required_keys = [self.audio_key, self.question_key]
+        # But if audio_key is missing, check for caption (for AudioCaps format)
+        required_keys = [self.question_key]  # At minimum, need question/caption
+        
+        # If audio_key is specified but missing, that's OK if we have caption
+        # (we'll handle missing audio files gracefully during embedding computation)
+        if self.audio_key in entry and entry[self.audio_key]:
+            # Audio path provided, validate it
+            pass
+        elif self.caption_key and self.caption_key in entry and entry[self.caption_key]:
+            # No audio path but has caption - OK for AudioCaps format
+            pass
+        else:
+            # Need at least caption
+            if not (self.caption_key and self.caption_key in entry and entry[self.caption_key]):
+                return False
+        
         return all(key in entry and entry[key] for key in required_keys)
     
     def _resolve_path(self, path: Union[str, Path]) -> Path:
@@ -196,7 +211,9 @@ def compute_and_save_embeddings(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    model.eval()
+    # ImageBindWrapper doesn't need eval() - it's always in eval mode
+    if hasattr(model, 'eval'):
+        model.eval()
     if hasattr(model, 'device'):
         device = model.device
     
@@ -211,15 +228,33 @@ def compute_and_save_embeddings(
             
             # Get image embedding (if available)
             if item["image_paths"]:
-                img_emb = model.get_embeddings(image=item["image_paths"][0])
-                image_embeddings.append(img_emb[image_embedding_key].cpu())
+                try:
+                    img_path = item["image_paths"][0]
+                    if not Path(img_path).exists():
+                        print(f"Warning: Image file not found: {img_path}")
+                        image_embeddings.append(None)
+                    else:
+                        img_emb = model.get_embeddings(image=img_path)
+                        image_embeddings.append(img_emb[image_embedding_key].cpu())
+                except Exception as e:
+                    print(f"Warning: Error processing image {item.get('image_paths', ['unknown'])[0]}: {e}")
+                    image_embeddings.append(None)
             else:
                 image_embeddings.append(None)
             
             # Get audio embedding
             if item["audio_paths"]:
-                audio_emb = model.get_embeddings(audio=item["audio_paths"][0])
-                audio_embeddings.append(audio_emb[audio_embedding_key].cpu())
+                try:
+                    audio_path = item["audio_paths"][0]
+                    if not Path(audio_path).exists():
+                        print(f"Warning: Audio file not found: {audio_path}")
+                        audio_embeddings.append(None)
+                    else:
+                        audio_emb = model.get_embeddings(audio=audio_path)
+                        audio_embeddings.append(audio_emb[audio_embedding_key].cpu())
+                except Exception as e:
+                    print(f"Warning: Error processing audio {item.get('audio_paths', ['unknown'])[0]}: {e}")
+                    audio_embeddings.append(None)
             else:
                 audio_embeddings.append(None)
     

@@ -187,7 +187,9 @@ def multimodal_fusion(
             else:
                 inferred_dim = image_emb.shape[0]
             
-            embed_dim = embed_dim if embed_dim != 1024 else inferred_dim
+            # Use inferred dimension if embed_dim is default (1024)
+            if embed_dim == 1024:
+                embed_dim = inferred_dim
             
             _multimodal_fusion_model = MultimodalFusionEncoder(
                 embed_dim=embed_dim,
@@ -195,10 +197,17 @@ def multimodal_fusion(
                 num_layers=num_layers,
             )
             
-            if device is not None:
-                _multimodal_fusion_model = _multimodal_fusion_model.to(device)
-            elif image_emb.is_cuda:
-                _multimodal_fusion_model = _multimodal_fusion_model.to(image_emb.device)
+            # Move to device
+            target_device = device
+            if target_device is None and image_emb.is_cuda:
+                target_device = image_emb.device
+            elif target_device is None:
+                target_device = torch.device('cpu')
+            
+            if isinstance(target_device, str):
+                target_device = torch.device(target_device)
+            
+            _multimodal_fusion_model = _multimodal_fusion_model.to(target_device)
         
         fusion_model = _multimodal_fusion_model
     

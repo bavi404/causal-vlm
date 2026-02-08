@@ -13,13 +13,15 @@ import numpy as np
 
 
 def find_result_csvs(results_dir: str = "results") -> List[Path]:
-    """Find all CSV files in results directory."""
+    """Find all CSV files in results directory, excluding tables subdirectory."""
     results_path = Path(results_dir)
     if not results_path.exists():
         print(f"Results directory not found: {results_dir}")
         return []
     
-    csv_files = list(results_path.rglob("*.csv"))
+    # Find CSV files but exclude tables subdirectory
+    csv_files = [f for f in results_path.rglob("*.csv") 
+                 if "tables" not in f.parts]
     print(f"Found {len(csv_files)} CSV files in {results_dir}")
     return csv_files
 
@@ -57,16 +59,22 @@ def load_metrics_from_csv(csv_path: Path) -> Dict[str, float]:
     
     Returns:
         Dictionary mapping metric names to values
+        Format: {task_metric: value} or {metric: value}
     """
     metrics = {}
     try:
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                task = row.get('task', '')
                 metric_name = row.get('metric', '')
                 value_str = row.get('value', '')
                 try:
                     value = float(value_str)
+                    # Store as both task_metric and just metric for compatibility
+                    if task:
+                        full_name = f"{task}_{metric_name}"
+                        metrics[full_name] = value
                     metrics[metric_name] = value
                 except ValueError:
                     continue
@@ -163,6 +171,7 @@ def create_results_table(
             'early': 'Baseline',
             'late': 'Proposed1',
             'multimodal': 'Proposed2',
+            'transformer': 'Proposed2',  # Alias for transformer
         }
     
     # Collect all datasets and interventions

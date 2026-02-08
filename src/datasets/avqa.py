@@ -158,7 +158,9 @@ def compute_and_save_embeddings(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    model.eval()
+    # ImageBindWrapper doesn't need eval() - it's always in eval mode
+    if hasattr(model, 'eval'):
+        model.eval()
     if hasattr(model, 'device'):
         device = model.device
     
@@ -173,15 +175,33 @@ def compute_and_save_embeddings(
             
             # Get image embedding
             if item["image_paths"]:
-                img_emb = model.get_embeddings(image=item["image_paths"][0])
-                image_embeddings.append(img_emb[image_embedding_key].cpu())
+                try:
+                    img_path = item["image_paths"][0]
+                    if not Path(img_path).exists():
+                        print(f"Warning: Image file not found: {img_path}")
+                        image_embeddings.append(None)
+                    else:
+                        img_emb = model.get_embeddings(image=img_path)
+                        image_embeddings.append(img_emb[image_embedding_key].cpu())
+                except Exception as e:
+                    print(f"Warning: Error processing image {item['image_paths'][0]}: {e}")
+                    image_embeddings.append(None)
             else:
                 image_embeddings.append(None)
             
             # Get audio embedding
             if item["audio_paths"]:
-                audio_emb = model.get_embeddings(audio=item["audio_paths"][0])
-                audio_embeddings.append(audio_emb[audio_embedding_key].cpu())
+                try:
+                    audio_path = item["audio_paths"][0]
+                    if not Path(audio_path).exists():
+                        print(f"Warning: Audio file not found: {audio_path}")
+                        audio_embeddings.append(None)
+                    else:
+                        audio_emb = model.get_embeddings(audio=audio_path)
+                        audio_embeddings.append(audio_emb[audio_embedding_key].cpu())
+                except Exception as e:
+                    print(f"Warning: Error processing audio {item['audio_paths'][0]}: {e}")
+                    audio_embeddings.append(None)
             else:
                 audio_embeddings.append(None)
     

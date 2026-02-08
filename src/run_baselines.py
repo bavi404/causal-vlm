@@ -224,13 +224,24 @@ def run_baseline_evaluation(
     
     # Load model
     print("Loading ImageBind model...")
-    model = ImageBindWrapper(device=device)
-    print(f"Model loaded on device: {model.device}\n")
+    try:
+        model = ImageBindWrapper(device=device)
+        print(f"Model loaded on device: {model.device}\n")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        print("Make sure ImageBind model weights are available.")
+        raise
     
     # Load dataset
     print(f"Loading dataset: {dataset_name}")
-    dataset = load_dataset(dataset_name, annotations_file, data_root)
-    print(f"Dataset loaded: {len(dataset)} samples\n")
+    try:
+        dataset = load_dataset(dataset_name, annotations_file, data_root)
+        print(f"Dataset loaded: {len(dataset)} samples\n")
+        if len(dataset) == 0:
+            raise ValueError(f"Dataset is empty after loading from {annotations_file}")
+    except Exception as e:
+        print(f"Error loading dataset: {e}")
+        raise
     
     # Load or compute embeddings
     image_embeddings, audio_embeddings = load_or_compute_embeddings(
@@ -260,7 +271,9 @@ def run_baseline_evaluation(
     )
     print("Intervention applied\n")
     
-    # Run retrieval evaluation
+    # For retrieval: cross-modal retrieval doesn't use fusion directly
+    # We compare image embeddings to audio embeddings
+    # Fusion is applied in QA where we compare fused embeddings to text
     print("Running retrieval evaluation...")
     retrieval_metrics = evaluate_retrieval(
         image_embeddings=image_embeddings,
@@ -349,12 +362,21 @@ def run_baseline_evaluation(
     
     # Log to CSV
     from src.evaluations.baseline_eval import log_metrics_to_csv
-    log_metrics_to_csv(
-        metrics=all_metrics,
-        output_path=results_path,
-        task=experiment_name,
-        append=False,
-    )
+    try:
+        log_metrics_to_csv(
+            metrics=all_metrics,
+            output_path=results_path,
+            task=experiment_name,
+            append=False,
+        )
+    except Exception as e:
+        print(f"Warning: Error saving results to CSV: {e}")
+        # Try to save as a simple dict instead
+        import json
+        json_path = results_path.with_suffix('.json')
+        with open(json_path, 'w') as f:
+            json.dump(all_metrics, f, indent=2)
+        print(f"Saved results to JSON instead: {json_path}")
     
     print(f"Results saved to {results_path}")
     print("\n" + "="*60)

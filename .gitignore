@@ -62,3 +62,16 @@ desktop.ini
 *.tmp
 *.temp
 
+# Test files and utilities (optional - uncomment if you don't want these in repo)
+# test_framework.py
+# convert_test_csv.py
+# test_with_csv.*
+# check_results.ps1
+# run_evaluation.ps1
+# CONTINUE_EVALUATION.md
+# README_TEST.md
+
+# Large data files
+*.zip
+*.part
+
